@@ -44,7 +44,8 @@ def ini_to_array(ini_file):
 hosts_file = '/etc/hosts'
 
 if "win32" in sys.platform:
-    hosts_file = '/Windows/System32/drivers/etc/hosts'
+    win_dir = os.environ["WINDIR"]
+    hosts_file = os.path.join(win_dir, 'System32\\drivers\\etc\\hosts')
 
 start_token = '## start-gsd'
 end_token = '## end-gsd'
@@ -56,6 +57,10 @@ def rehash():
 def work():
     hFile = open(hosts_file, 'a+')
     contents = hFile.read()
+    #this is a bug in python
+    #http://blog.myjotnotes.com/2008/07/08/bizarre-python-file-error/
+    hFile.close()
+    hFile = open(hosts_file, 'a+')
 
     if start_token in contents and end_token in contents:
         exit_error("Work mode already set.")
@@ -90,11 +95,22 @@ def play():
 
         rehash()
 
+def has_access(fn):
+    try:
+        f = open(fn, "a+")
+        f.close()
+        return True
+    except:
+        pass
+    return False
+
 def main():
-    if getpass.getuser() != 'root' and 'win32' not in sys.platform:
-        exit_error('Please run script as root.')
     if len(sys.argv) != 2:
         exit_error('usage: ' + sys.argv[0] + ' [work|play]')
+
+    if not has_access(hosts_file):
+        exit_error("I can't open %s for writing (no admin privs?)"%hosts_file)
+
     try:
         {"work": work, "play": play}[sys.argv[1]]()
     except KeyError:
